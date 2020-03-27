@@ -1,154 +1,101 @@
 import React, { useEffect, useState } from 'react';
-import pathToRegexp from 'path-to-regexp';
 import _find from 'lodash/find';
 import _findIndex from 'lodash/findIndex';
 import _isEqual from 'lodash/isEqual';
 import withRouter from 'umi/withRouter';
-import router, { RouteData } from 'umi/router';
-import MenuTabs, { MenuTab } from '@/components/MenuTabs';
+import classNames from 'classnames';
 
-// result: [pathID, pathName]
-function getMetadataOfTab(
-  childrenPathname: string,
-  originalMenuData: MenuItem[]
-): [string, string] {
-  function getMetadata(path: string, menuData: MenuItem[], parent: MenuItem | null) {
-    let result: [string, string];
-    menuData.forEach(item => {
-      /** match prefix iteratively */
-      if (pathToRegexp(`${item.path}(.*)`).test(path)) {
-        if (!parent && item.name) {
-          result = [item.path, item.name];
-        } else if (parent && !parent.component && item.component && item.name) {
-          /** create new tab if item has name and item's parant route has not component */
-          result = [item.path, item.name];
-        }
-        /** get children pathID, pathName, shouldUpdate recursively */
-        if (item.children) {
-          result = getMetadata(path, item.children, item) || result;
-        }
-      }
-    });
-    return result;
-  }
-  return getMetadata(childrenPathname, originalMenuData, null) || ['404', 'Error'];
-}
-
-/**
- * 如果是根据路径来展示标签页，可动态配置标签页标题
- *
- * @param pathID 预定义的标签页路由，可据此动态配置标题
- * @param predefinePathName 预定义的已转义的国际化标题
- * @param params 路由中的参数
- * @param location RouteData
- */
-function setPathName(pathID: string, predefinePathName: string, params: any, location: RouteData) {
-  if (pathID.includes('dynamic')) {
-    return `${predefinePathName} - ${location.query.name}`;
-  }
-  return predefinePathName;
-}
-
-function getParams(path: string, pathname: string): { [key: string]: string } {
-  const match = pathToRegexp.match(path);
-  const result = match(pathname) as {
-    index: number;
-    params: { [k: string]: string };
-    path: string;
-  };
-  return result.params;
-}
-
-function routeTo(targetTab: MenuTab<{ location: any }>) {
-  router.push(targetTab.extraTabProperties.location);
-}
-
-function addTab<T>(newTab: MenuTab<T>, activedTabs: MenuTab<T>[]) {
-  /**
-   * filter 过滤路由 为 '/' 的 children
-   * map 添加第一个 tab 不可删除
-   */
-  return [...activedTabs, newTab].map((item, index) =>
-    activedTabs.length === 0 && index === 0
-      ? { ...item, closable: false }
-      : { ...item, closable: true }
-  );
-}
-
-const switchAndUpdateTab: <T>(
-  activedTabs: MenuTab<T>[]
-) => (
-  activeIndex: number,
-  tabName: string,
-  extraTabProperties: any,
-  children: any
-) => MenuTab<T>[] = activedTabs => (activeIndex, tabName, extraTabProperties, children) => {
-  const { content, refresh, extraTabProperties: prevExtraTabProperties, ...rest } = activedTabs[
-    activeIndex
-  ];
-
-  activedTabs.splice(activeIndex, 1, {
-    tab: tabName,
-    content: refresh ? content : children,
-    extraTabProperties,
-    ...rest,
-  });
-
-  /** map 删除后更新的 activedTabs 长度为 1 时不可删除 */
-  return activedTabs.map(item => (activedTabs.length === 1 ? { ...item, closable: false } : item));
-};
-
-export interface PageTabsProps {
-  proRootPath?: string;
-  pageTabs?: 'route' | 'path';
-  children?: UmiChildren;
-  originalMenuData: MenuItem[];
-  location: RouteData;
-}
+import MenuTabs from '@/components/PageTabs/components/MenuTabs';
+import { getActiveTabInfo, routeTo } from './utils';
+import { UmiChildren, PageTab, PageTabsProps, BeautifulLocation } from './data';
+import './index.less';
 
 function PageTabs(props: PageTabsProps) {
-  const { proRootPath = '/', pageTabs, children, originalMenuData, location } = props;
+  const {
+    proRootPath = '/',
+    location,
+    pageTabs = 'route',
+    fixedPageTabs,
+    setTabTitle,
+    originalMenuData,
+    children,
+  } = props;
+
   /** return children to redirect if children pathname equal proRootPath */
   if (location.pathname === proRootPath) {
     return children;
   }
-  const [tabs, setTabs] = useState<MenuTab[]>([]);
 
-  const [pathID, pathName] = getMetadataOfTab(location.pathname, originalMenuData);
-  const activeKey = pageTabs === 'path' ? location.pathname : pathID;
-  const activeTitle =
-    pageTabs === 'path'
-      ? setPathName(pathID, pathName, getParams(pathID, location.pathname), location)
-      : pathName;
+  const [tabs, setTabs] = useState<PageTab<{ location: BeautifulLocation }>[]>([]);
+  const [activeKey, activeTitle] = getActiveTabInfo(location)(
+    pageTabs,
+    originalMenuData,
+    setTabTitle
+  );
+
+  /**
+   * 新增第一个 tab 不可删除
+   *
+   * @param newTab
+   */
+  const addTab = (newTab: PageTab<{ location: BeautifulLocation }>) => {
+    setTabs(
+      [...tabs, newTab].map((item, index) =>
+        tabs.length === 0 && index === 0
+          ? { ...item, closable: false }
+          : { ...item, closable: true }
+      )
+    );
+  };
+
+  /**
+   *
+   * @param reloadKey 需要刷新的 tab key
+   * @param tabTitle 需要刷新的 tab 标题
+   * @param extraTabProperties 需要刷新的 tab 额外属性
+   * @param content 需要刷新的 tab 渲染的内容
+   */
+  const reloadTab = (
+    reloadKey: string,
+    tabTitle?: React.ReactNode,
+    extraTabProperties?: any,
+    content?: UmiChildren
+  ) => {
+    if (Array.isArray(tabs) && tabs.length) {
+      const updatedTabs = tabs.map(item => {
+        if (item.key === reloadKey) {
+          const {
+            tab: prevTabTitle,
+            extraTabProperties: prevExtraTabProperties,
+            content: prevContent,
+            ...rest
+          } = item;
+          return {
+            ...rest,
+            tab: tabTitle || prevTabTitle,
+            extraTabProperties: extraTabProperties || prevExtraTabProperties,
+            content: content || React.cloneElement(item.content, { key: new Date().valueOf() }),
+          };
+        }
+        return item;
+      });
+      setTabs(updatedTabs);
+    }
+  };
 
   useEffect(() => {
-    window.handleTabRefresh = () => {
-      setTabs(
-        tabs.map(item => {
-          if (item.key === activeKey) {
-            return {
-              ...item,
-              content: React.cloneElement(item.content, { key: item.key ? item.key + 1 : 1 }),
-            };
-          }
-          return item;
-        })
-      );
-    };
+    window.reloadCurrentTab = () => reloadTab(activeKey);
   }, [tabs]);
 
   useEffect(() => {
-    const activedTabIndex = _findIndex(tabs, { key: activeKey });
-    if (activedTabIndex > -1) {
-      const { extraTabProperties: prevExtraTabProperties } = tabs[activedTabIndex];
+    console.log('children effect', children);
+    const activedTab = _find(tabs, { key: activeKey });
+    if (activedTab) {
+      const { extraTabProperties: prevExtraTabProperties } = activedTab;
+      console.log('current location', { location });
+      console.log('prev location', prevExtraTabProperties);
       if (!_isEqual({ location }, prevExtraTabProperties)) {
-        const refreshedTabs = switchAndUpdateTab(tabs)(
-          activedTabIndex,
-          activeTitle,
-          { location },
-          children
-        );
-        setTabs(refreshedTabs);
+        reloadTab(activeKey, activeTitle, { location }, children);
       }
     } else {
       const newTab = {
@@ -157,13 +104,12 @@ function PageTabs(props: PageTabsProps) {
         content: children as any,
         extraTabProperties: { location },
       };
-      const addedTabs = addTab(newTab, tabs);
-      setTabs(addedTabs);
+      addTab(newTab);
     }
   }, [children]);
 
   const handleSwitch = (keyToSwitch: string) => {
-    const targetTab = _find(tabs, { key: keyToSwitch });
+    const targetTab = _find(tabs, { key: keyToSwitch })!;
     routeTo(targetTab);
   };
 
@@ -172,23 +118,26 @@ function PageTabs(props: PageTabsProps) {
     if (removeKey !== activeKey) {
       nextTabKey = activeKey;
     } else {
-      const targetIndex = _findIndex(tabs, { key: removeKey });
-      const nextIndex = targetIndex > 0 ? targetIndex - 1 : targetIndex + 1;
+      const removeIndex = _findIndex(tabs, { key: removeKey });
+      const nextIndex = removeIndex >= 1 ? removeIndex - 1 : removeIndex + 1;
       nextTabKey = tabs[nextIndex].key;
     }
-    setTabs(tabs.filter(item => item.key !== removeKey));
-    const targetTab = _find(tabs, { key: nextTabKey });
-    routeTo(targetTab);
+    handleSwitch(nextTabKey);
+    const restTabs = tabs.filter(item => item.key !== removeKey);
+    setTabs(restTabs.map(item => (restTabs.length === 1 ? { ...item, closable: false } : item)));
   };
 
   const handleRemoveOthers = (currentKey: string) => {
-    const currentTab = tabs.filter(item => item.key === currentKey);
-    setTabs(currentTab.map(item => ({ ...item, closable: false })));
+    const restTabs = tabs.filter(item => item.key === currentKey);
+    handleSwitch(currentKey);
+    setTabs(restTabs.map(item => ({ ...item, closable: false })));
   };
 
   const handRemoveRightTabs = (currentKey: string) => {
     const currentIndex = _findIndex(tabs, { key: currentKey });
-    setTabs(tabs.slice(0, currentIndex + 1));
+    handleSwitch(tabs[currentIndex].key);
+    const restTabs = tabs.slice(0, currentIndex + 1);
+    setTabs(restTabs.map(item => (restTabs.length === 1 ? { ...item, closable: false } : item)));
   };
 
   return (
@@ -200,10 +149,11 @@ function PageTabs(props: PageTabsProps) {
       onRemoveRightTabs={handRemoveRightTabs}
       tabsProps={{
         animated: true,
+        className: classNames({ 'page-tabs-fixed': fixedPageTabs }),
       }}
       tabs={tabs}
     />
   );
 }
 
-export default withRouter(PageTabs as any);
+export default withRouter<PageTabsProps, React.FC>(PageTabs as React.FC);

@@ -1,30 +1,27 @@
 import React from 'react';
 import { Tabs, Dropdown, Menu } from 'antd';
 import { TabsProps } from 'antd/lib/tabs';
-import { MenuProps } from 'antd/lib/menu';
+import { MenuProps, ClickParam } from 'antd/lib/menu';
 import { FormattedMessage } from 'umi-plugin-react/locale';
-import styles from './index.less';
+import _debounce from 'lodash/debounce';
 
-const { TabPane } = Tabs;
+import styles from './index.less';
+import { UmiChildren } from '../../data';
 
 const closeCurrentTabMenuKey = 'closeCurrent';
 const closeOthersTabMenuKey = 'closeOthers';
 const closeToRightTabMenuKey = 'closeToRight';
 
-export interface MenuTab<T = any> {
+export interface MenuTab {
   /** tab's title */
-  tab: string;
+  tab: React.ReactNode;
   key: string;
-  content: JSX.Element;
+  content: UmiChildren;
   closable?: boolean;
-  /** used to indicate the tab need refresh */
-  refresh?: boolean;
-  /** used to extends tab's properties */
-  extraTabProperties?: T;
 }
 
 export interface MenuTabsProps {
-  activeKey: string;
+  activeKey?: string;
   tabs: MenuTab[];
   onSwitch: (keyToSwitch: string) => void;
   onRemove: (removeKey: string) => void;
@@ -34,7 +31,7 @@ export interface MenuTabsProps {
 }
 
 export default class extends React.Component<MenuTabsProps> {
-  handleTabEdit = (targetKey: string, action: string) => {
+  handleTabEdit = (targetKey: string, action: 'add' | 'remove') => {
     this[action](targetKey);
   };
 
@@ -43,9 +40,10 @@ export default class extends React.Component<MenuTabsProps> {
     onRemove(key);
   };
 
-  handleTabsMenuClick = (tabKey: string): MenuProps['onClick'] => event => {
+  handleTabsMenuClick = (tabKey: string): MenuProps['onClick'] => (event: ClickParam) => {
     const { onRemove, onRemoveOthers, onRemoveRightTabs } = this.props;
-    const { key } = event;
+    const { key, domEvent } = event;
+    domEvent.stopPropagation();
 
     if (key === closeCurrentTabMenuKey) {
       onRemove(tabKey);
@@ -73,7 +71,7 @@ export default class extends React.Component<MenuTabsProps> {
       </Menu>
     );
 
-    const setTab = (tab: string, key: string, index: number) => (
+    const setTab = (tab: React.ReactNode, key: string, index: number) => (
       <span onContextMenu={event => event.preventDefault()}>
         <Dropdown overlay={setMenu(key, index)} trigger={['contextMenu']}>
           <span className={styles.tabTitle}>{tab}</span>
@@ -86,13 +84,13 @@ export default class extends React.Component<MenuTabsProps> {
         !!tabs.length &&
         tabs.map((item: MenuTab, index) => {
           return (
-            <TabPane
+            <Tabs.TabPane
               tab={setTab(item.tab, item.key, index)}
               key={item.key}
               closable={item.closable}
             >
               {item.content}
-            </TabPane>
+            </Tabs.TabPane>
           );
         })
       );
@@ -107,7 +105,7 @@ export default class extends React.Component<MenuTabsProps> {
         hideAdd
         {...tabsProps}
         activeKey={activeKey}
-        onEdit={this.handleTabEdit}
+        onEdit={this.handleTabEdit as TabsProps['onEdit']}
         onChange={onSwitch}
       >
         {renderTabs()}

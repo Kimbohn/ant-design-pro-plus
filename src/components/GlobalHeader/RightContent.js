@@ -63,9 +63,9 @@ export default class GlobalHeaderRight extends PureComponent {
     });
   };
 
-  handleTabRefresh = () => {
-    if (window.handleTabRefresh) {
-      window.handleTabRefresh();
+  reloadCurrentTab = () => {
+    if (window.reloadCurrentTab) {
+      window.reloadCurrentTab();
     }
   };
 
@@ -126,7 +126,7 @@ export default class GlobalHeaderRight extends PureComponent {
         />
         {pageTabs && reloadTab ? (
           <Tooltip title={formatMessage({ id: 'component.globalHeader.reload' })}>
-            <a className={styles.action} onClick={this.handleTabRefresh}>
+            <a className={styles.action} onClick={this.reloadCurrentTab}>
               <Icon type="reload" />
             </a>
           </Tooltip>

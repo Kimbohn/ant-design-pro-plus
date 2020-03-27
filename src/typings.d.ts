@@ -6,16 +6,21 @@ declare interface UmiChildren extends React.ReactChildren {
   };
 }
 
-declare interface MenuItem {
-  authority: string[] | undefined;
-  children?: MenuItem[];
-  component?: React.Component;
-  icons?: string;
+declare interface MenuDataItem {
+  authority?: string[] | string;
+  children?: MenuDataItem[];
+  hideChildrenInMenu?: boolean;
+  hideInMenu?: boolean;
+  icon?: React.ReactNode;
+  locale?: string;
   name?: string;
-  path: string;
+  key?: string;
+  path?: string;
+  [key: string]: any;
+  parentKeys?: string[];
 }
 
 interface Window {
-  handleTabRefresh: () => void;
+  reloadCurrentTab: () => void;
   routerBase: string;
 }
