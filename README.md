@@ -14,13 +14,10 @@
 
 ![ant-design-pro-plus-min.png](https://i.loli.net/2019/12/19/Kvrq4JloCQ7Ekty.png)
 
-为了实现基于 Github Pages 的在线预览的功能，仅将**功能示例**和 **Dashboard** 下的**分析页**数据写到了代码中，以便查看页面效果。
-
 官方仓库没有针对部署到非根目录情况下的登录重定向，已提交 pull request [fix: redirect with deploy on non-root path](https://github.com/ant-design/ant-design-pro/pull/4887)。
 
 ## ✨新增特性
 
-* MenuTabs 带右键菜单的标签页组件
 * [PageTabs 基于路由实现标签页切换](#PageTabs-基于路由实现标签页切换)
 * [StandardTable 增强](#StandardTable-增强)
 
@@ -31,8 +28,6 @@
 * [antd-curd](https://github.com/zpr1g/antd-curd) 基于 ant design 的增删改查页面组件
 
 ## ☁️功能实现概述
-
-除 UI 组件外，尽量使用 TypeScript 开发。
 
 ### PageTabs 基于路由实现标签页切换
 
