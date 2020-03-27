@@ -1,11 +1,5 @@
 declare module '*.less';
 
-declare interface UmiChildren extends React.ReactChildren {
-  props: {
-    location: Location;
-  };
-}
-
 declare interface MenuDataItem {
   authority?: string[] | string;
   children?: MenuDataItem[];
