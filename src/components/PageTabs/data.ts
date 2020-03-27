@@ -38,6 +38,6 @@ export interface PageTabsProps extends RouteComponentProps<any> {
   ) => React.ReactNode;
 }
 
-declare interface BeautifulLocation<Q = {}, S = H.LocationState> extends H.Location<S> {
+export interface BeautifulLocation<Q = {}, S = H.LocationState> extends H.Location<S> {
   query: Q;
 }
