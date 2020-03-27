@@ -1,3 +1,4 @@
+/* eslint-disable import/order */
 import React, { Suspense } from 'react';
 import { Layout } from 'antd';
 import DocumentTitle from 'react-document-title';
